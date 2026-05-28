@@ -70,8 +70,8 @@ To successfully deploy and run, populate the following environment variables in 
 4. **Deploy**: Hit "Deploy". Vercel will automatically run the build steps (`npm run build`).
 5. **Database Push**: Since Prisma does not automatically migrate via Vercel builds by default, you may want to append `npx prisma db push && ` to your Vercel build command, or manually run it locally pointing to your production database URL.
 6. **Integrations Setup**:
-   - Establish a **Google Cloud OAuth app**, enabling the callback URL: `https://your-app.vercel.app/api/auth/callback/google`
-   - Setup a **Stripe Webhook**, pointing to `https://your-app.vercel.app/api/stripe/webhook` and selecting the `checkout.session.completed` event to grab your webhook signing secret.
+   - Establish a **Google Cloud OAuth app**, enabling the callback URL: `https://ai-fitness-body-simulator.vercel.app/api/auth/callback/google`
+   - Setup a **Stripe Webhook**, pointing to `https://ai-fitness-body-simulator.vercel.app/api/stripe/webhook` and selecting the `checkout.session.completed` event to grab your webhook signing secret.
 
 ---
 
