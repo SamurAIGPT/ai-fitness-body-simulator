@@ -1,6 +1,9 @@
-# 🏋️ AI Fitness Body Simulator — High-Octane AI Physique Simulator & Body Transformation SaaS
+# 🏋️ AI Fitness Body Simulator — Open-Source AI Body Transformation & Physique Simulator SaaS (Free BodyApp / SimScale Alternative)
 
-> **Simulate photorealistic physical fitness transformations and custom athletic physique reconfigurations.** Built with Next.js, this open-source template serves as a complete, self-contained SaaS boilerplate for uploading a subject photo, specifying target fitness parameters, and generating high-fidelity simulated body transformations powered by the advanced `nano-banana-pro-edit` model.
+> **Visualize your fitness transformation goals with photorealistic AI body simulation in seconds.** A production-ready, self-hostable Next.js SaaS boilerplate with photo upload, target physique configuration, and high-fidelity AI body transformation — powered by the MuAPI AI engine. A free open-source alternative to BodyApp AI, Evolt 360, and fitness transformation preview tools.
+
+**Tech stack:** Next.js 14 (App Router) · Prisma · PostgreSQL · NextAuth (Google OAuth) · Stripe · Tailwind CSS · MuAPI nano-banana-pro-edit
+**Use cases:** Personal trainers · Fitness app marketing · Gym membership sales · Weight loss coaching · Athletic training programs · Fitness influencer content · Body transformation challenges · Health & wellness SaaS
 
 ## 🌐 Try the Live Engine
 
