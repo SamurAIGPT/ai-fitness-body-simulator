@@ -23,11 +23,20 @@ export default function Navbar() {
     // Prefetch common routes
   }, []);
 
-  const navLinks = [
-    { name: "Workspace", path: "/" },
-    { name: "Gallery", path: "/gallery" },
-    { name: "Pricing", path: "/pricing" },
-  ];
+  const appMatch = pathname ? pathname.match(/^\/app\/([^\/]+)/) : null;
+  const currentAppId = appMatch ? appMatch[1] : null;
+
+  const navLinks = currentAppId
+    ? [
+        { name: "Workspace", path: `/app/${currentAppId}` },
+        { name: "Gallery", path: `/app/${currentAppId}/gallery` },
+        { name: "Pricing", path: `/app/${currentAppId}/pricing` },
+      ]
+    : [
+        { name: "Workspace", path: "/" },
+        { name: "Gallery", path: "/gallery" },
+        { name: "Pricing", path: "/pricing" },
+      ];
 
   return (
     <header className="sticky top-0 z-50 w-full glass-panel border-b border-divider/50 shadow-md">

@@ -1,5 +1,4 @@
 "use client";
-import { standaloneConfig } from "@/lib/standaloneConfig";
 
 import { useSession } from "next-auth/react";
 import { useState } from "react";
@@ -53,7 +52,7 @@ export default function Pricing() {
             <FaInfoCircle className="text-primary text-xs" />
             <span className="text-[10px] font-black text-primary uppercase tracking-widest">Pricing Plans</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight uppercase">Buy Credits for {standaloneConfig.name}</h1>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight uppercase">Buy Credits Packs</h1>
           <p className="text-xs sm:text-sm text-secondary-text max-w-lg leading-relaxed">
             Purchase flexible credit packages to perform high-resolution predictions. Keep all profits — we handle AI infrastructure.
           </p>
