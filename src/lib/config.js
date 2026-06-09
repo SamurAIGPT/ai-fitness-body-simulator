@@ -1,9 +1,5 @@
-/**
- * Centralized configuration for the SaaS template.
- * All environment variables are validated and exported from here.
- */
-
 const config = {
+  appName: "AI SaaS",
   auth: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -18,37 +14,16 @@ const config = {
     secretKey: process.env.STRIPE_SECRET_KEY,
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
     plans: {
-      basic: { id: "basic", name: "Basic Pack", credits: 1000, price: 500 },
-      standard: { id: "standard", name: "Standard Pack", credits: 2000, price: 1000 },
-      pro: { id: "pro", name: "Professional Pack", credits: 4000, price: 2000 },
-      business: { id: "business", name: "Business Pack", credits: 10000, price: 5000 },
+      basic: { id: "basic", name: "Basic Pack", credits: 100, price: 500 },
+      standard: { id: "standard", name: "Standard Pack", credits: 250, price: 1000 },
+      pro: { id: "pro", name: "Professional Pack", credits: 600, price: 2000 },
+      business: { id: "business", name: "Business Pack", credits: 2000, price: 5000 },
     }
   },
   ai: {
-    banana: {
-      apiKey: process.env.MUAPIAPP_API_KEY,
-    }
-  },
-  db: {
-    url: process.env.DATABASE_URL,
+    apiKey: process.env.MUAPIAPP_API_KEY,
+    generationCost: 1, // Default cost per AI call
   }
 };
-
-// Simple validation to warn if critical keys are missing
-const requiredKeys = [
-  ["GOOGLE_CLIENT_ID", config.auth.google.clientId],
-  ["GOOGLE_CLIENT_SECRET", config.auth.google.clientSecret],
-  ["STRIPE_SECRET_KEY", config.stripe.secretKey],
-  ["DATABASE_URL", config.db.url],
-  ["MUAPIAPP_API_KEY", config.ai.banana.apiKey],
-];
-
-if (typeof window === "undefined") {
-  requiredKeys.forEach(([name, value]) => {
-    if (!value) {
-      console.warn(`[CONFIG] Warning: Missing critical environment variable: ${name}`);
-    }
-  });
-}
 
 export default config;

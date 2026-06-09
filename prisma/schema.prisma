@@ -8,19 +8,20 @@ datasource db {
 }
 
 model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -34,15 +35,52 @@ model Session {
 }
 
 model User {
-  id            String            @id @default(cuid())
+  id            String        @id @default(cuid())
   name          String?
-  email         String?           @unique
+  email         String?       @unique
   emailVerified DateTime?
   image         String?
-  credits       Int               @default(0)
+  credits       Int           @default(10)
   accounts      Account[]
   sessions      Session[]
-  creations     FitnessCreation[]
+  creations     Creation[]
+  instances     AppInstance[]
+}
+
+model AppInstance {
+  id          String     @id @default(cuid())
+  name        String
+  templateId  String
+  config      String?    @db.Text // JSON string representation of template-specific configuration parameters
+  createdAt   DateTime   @default(now())
+  
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creations   Creation[]
+}
+
+model Creation {
+  id           String   @id @default(cuid())
+  prompt       String?  @db.Text
+  inputImage   String?  @db.Text
+  resultImage  String?  @db.Text
+  aspectRatio  String?
+  resolution   String?
+  creditCost   Int      @default(1)
+  status       String   @default("processing")
+  requestId    String?  @unique
+  error        String?  @db.Text
+  createdAt    DateTime @default(now())
+  
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  appId        String?
+  app          AppInstance? @relation(fields: [appId], references: [id], onDelete: Cascade)
+  images_list String?
+  aspect_ratio String?
+  google_search Boolean?
+  output_format String?
 }
 
 model VerificationToken {
@@ -51,20 +89,4 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
-}
-
-model FitnessCreation {
-  id           String   @id @default(cuid())
-  userId       String
-  inputImage   String   @db.Text
-  resultImage  String?  @db.Text
-  prompt       String   @db.Text
-  aspectRatio  String?
-  resolution   String?
-  requestId    String?  @unique
-  status       String   @default("processing")
-  error        String?  @db.Text
-  creditCost   Int      @default(24)
-  createdAt    DateTime @default(now())
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

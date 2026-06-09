@@ -1,140 +1,236 @@
-import config from "@/lib/config";
+import { prisma } from "../prisma";
 import { UserService } from "./user";
-import { prisma } from "@/lib/prisma";
+import config from "../config";
 
-/**
- * Service to manage AI Fitness simulator predictions.
- */
 export const AIService = {
   /**
-   * Calculate credit cost based on resolution
+   * Submit a prediction job to MuAPI, deduct credits, and execute inline polling.
    */
-  getCreditCost(resolution) {
-    switch (resolution) {
-      case "4k": return 36;
-      case "2k": return 24;
-      case "1k":
-      default: return 24;
-    }
-  },
-
-  /**
-   * Execute an edit quest using muapi.ai
-   */
-  async edit(userId, { prompt, inputImage, aspectRatio = "Auto", resolution = "1k" }) {
-    if (!inputImage) throw new Error("An input image is required.");
+  async generate(userId, { prompt, inputImage, aspectRatio, modelEndpoint = "predictions", appId = null, creditCost = null, model = null, customParams = {} }) {
+    const cost = creditCost !== null ? Number(creditCost) : config.ai.generationCost;
     
-    const cost = this.getCreditCost(resolution);
+    // 1. Deduct credits
     await UserService.deductCredits(userId, cost);
 
-    const apiKey = config.ai.banana.apiKey;
-    if (!apiKey) throw new Error("MUAPIAPP_API_KEY is not configured");
+    const apiKey = config.ai.apiKey;
+    if (!apiKey) {
+      // Return local mock generation in development if API key is missing
+      console.warn("MUAPIAPP_API_KEY is not configured. Running offline simulation.");
+      const mockRequestId = `mock_${Math.random().toString(36).substring(2, 9)}`;
+      
+      const creation = await prisma.creation.create({
+        data: {
+          userId,
+          prompt,
+          inputImage,
+          requestId: mockRequestId,
+          status: "completed",
+          resultImage: inputImage || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80",
+          creditCost: cost,
+          aspectRatio,
+        appId,
+          prompt: customParams.prompt !== undefined ? String(customParams.prompt) : "",
+          images_list: customParams.images_list !== undefined ? (Array.isArray(customParams.images_list) ? JSON.stringify(customParams.images_list) : String(customParams.images_list)) : "[]",
+          aspect_ratio: customParams.aspect_ratio !== undefined ? String(customParams.aspect_ratio) : "Auto",
+          google_search: customParams.google_search !== undefined ? (customParams.google_search === true || customParams.google_search === "true") : false,
+          resolution: customParams.resolution !== undefined ? String(customParams.resolution) : "1k",
+          output_format: customParams.output_format !== undefined ? String(customParams.output_format) : "jpg"
+        }
+      });
+      return { id: creation.id, resultImage: creation.resultImage, status: "completed" };
+    }
 
+    // 2. Submit to MuAPI
     const webhookUrl = `${config.auth.webhook_url}/api/webhook/muapi`;
-    const submitUrl = `https://api.muapi.ai/api/v1/nano-banana-2-edit?webhook=${encodeURIComponent(webhookUrl)}`;
-    
-    // We send images_list as [inputImage] - strictly single image
-    const bodyPayload = {
-      prompt,
-      images_list: [inputImage],
-      aspect_ratio: aspectRatio,
-      resolution,
-    };
+    const isLlm = modelEndpoint === "any-llm-models" || modelEndpoint.includes("completions");
+    let finalEndpoint = isLlm ? "any-llm-models" : modelEndpoint;
 
-    const submitRes = await fetch(submitUrl, {
+    if (finalEndpoint === "predictions" || !finalEndpoint) {
+      let modelName = model || "nano-banana-2";
+      if (inputImage && (modelName === "nano-banana-2" || modelName === "nano-banana-pro")) {
+        modelName = `${modelName}-edit`;
+      }
+      finalEndpoint = modelName;
+    }
+
+    let bodyPayload = {};
+    if (isLlm) {
+      let finalPrompt = prompt;
+      let systemPromptText = "You are a helpful AI assistant.";
+      try {
+        const parsed = JSON.parse(prompt);
+        if (parsed.chatHistory) {
+          finalPrompt = parsed.chatHistory.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n') + '\nAssistant:';
+        }
+        if (parsed.systemPrompt) {
+          systemPromptText = parsed.systemPrompt;
+        }
+      } catch (e) {
+        // Fallback to raw prompt string
+      }
+
+      bodyPayload = {
+        prompt: finalPrompt,
+        system_prompt: systemPromptText,
+        model: model || "google/gemini-2.5-flash",
+        temperature: 0.7,
+        ...customParams,
+      };
+    } else {
+      bodyPayload = {
+        prompt,
+        images_list: inputImage ? [inputImage] : [],
+        aspect_ratio: aspectRatio || "1:1",
+        ...customParams,
+        webhook: webhookUrl,
+      };
+    }
+
+    const targetUrl = finalEndpoint.startsWith("http://") || finalEndpoint.startsWith("https://")
+      ? `${finalEndpoint}?webhook=${encodeURIComponent(webhookUrl)}`
+      : `https://api.muapi.ai/api/v1/${finalEndpoint}?webhook=${encodeURIComponent(webhookUrl)}`;
+
+    const response = await fetch(targetUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         "x-api-key": apiKey,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(bodyPayload),
     });
 
-    if (!submitRes.ok) {
-      const errorText = await submitRes.text();
-      throw new Error(`API Submission Failed: ${submitRes.status} ${errorText}`);
+    if (!response.ok) {
+      // Refund credits on submission error
+      await UserService.addCredits(userId, cost);
+      const errorText = await response.text();
+      throw new Error(`API submission failed: ${response.status} ${errorText}`);
     }
 
-    const { request_id } = await submitRes.json();
-    if (!request_id) throw new Error("No request_id received from API");
+    const responseJson = await response.json();
+    const requestId = responseJson.request_id || responseJson.id;
+    if (!requestId) {
+      await UserService.addCredits(userId, cost);
+      throw new Error("No request_id returned from MUAPI");
+    }
 
-    // Save to the database
-    const creation = await prisma.fitnessCreation.create({
+    // 3. Save initial record to database
+    let creation = await prisma.creation.create({
       data: {
         userId,
         prompt,
         inputImage,
-        aspectRatio,
-        resolution,
-        requestId: request_id,
+        requestId,
         status: "processing",
         creditCost: cost,
+        aspectRatio,
+        appId,
+          prompt: customParams.prompt !== undefined ? String(customParams.prompt) : "",
+          images_list: customParams.images_list !== undefined ? (Array.isArray(customParams.images_list) ? JSON.stringify(customParams.images_list) : String(customParams.images_list)) : "[]",
+          aspect_ratio: customParams.aspect_ratio !== undefined ? String(customParams.aspect_ratio) : "Auto",
+          google_search: customParams.google_search !== undefined ? (customParams.google_search === true || customParams.google_search === "true") : false,
+          resolution: customParams.resolution !== undefined ? String(customParams.resolution) : "1k",
+          output_format: customParams.output_format !== undefined ? String(customParams.output_format) : "jpg"
       }
     });
 
-    return { request_id, id: creation.id };
+    // 4. Inline Polling Loop (up to 15 seconds)
+    let resultImage = "";
+    let status = "processing";
+    let completed = false;
+    let attempts = 0;
+
+    while (!completed && attempts < 6) {
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      attempts++;
+
+      try {
+        const pollResponse = await fetch(`https://api.muapi.ai/api/v1/predictions/${requestId}/result`, {
+          headers: { "x-api-key": apiKey },
+        });
+
+        if (pollResponse.ok) {
+          const pollJson = await pollResponse.json();
+          const checkStatus = pollJson.status || pollJson.state;
+
+          if (checkStatus === "completed" || checkStatus === "succeeded") {
+            const outputs = pollJson.outputs || [];
+            resultImage = outputs[0] || pollJson.output;
+            status = "completed";
+            completed = true;
+          } else if (checkStatus === "failed") {
+            status = "failed";
+            completed = true;
+          }
+        }
+      } catch (pollErr) {
+        console.error("Error polling prediction:", pollErr);
+      }
+    }
+
+    // 5. Update creation record in database
+    if (completed) {
+      creation = await prisma.creation.update({
+        where: { id: creation.id },
+        data: {
+          status,
+          resultImage: status === "completed" ? resultImage : null,
+          error: status === "failed" ? "Polling returned failed status" : null,
+        }
+      });
+
+      // Refund if failed
+      if (status === "failed") {
+        await UserService.addCredits(userId, cost);
+      }
+    }
+
+    return { id: creation.id, resultImage: creation.resultImage, status: creation.status };
   },
 
   /**
-   * Check status of a request and save to DB on completion
+   * Sync and heal status of a creation record using MuAPI state lookup.
    */
-  async checkStatus(requestId, userId) {
-    const creation = await prisma.fitnessCreation.findUnique({
-      where: { requestId }
+  async syncStatus(creationId) {
+    const creation = await prisma.creation.findUnique({
+      where: { id: creationId },
+      include: { app: true }
     });
+    if (!creation || creation.status !== "processing") return creation;
 
-    if (!creation) {
-      return { status: "not_found" };
-    }
-
-    if (creation.status === "completed") {
-      return { status: "completed", imageUrl: creation.resultImage };
-    }
-
-    if (creation.status === "failed") {
-      return { status: "failed", error: creation.error };
-    }
-
-    // If still processing, call upstream to see if it's done (self-healing / fallback)
-    const apiKey = config.ai.banana.apiKey;
-    if (!apiKey) return { status: "processing" };
+    const apiKey = config.ai.apiKey;
+    if (!apiKey) return creation;
 
     try {
-      const pollRes = await fetch(`https://api.muapi.ai/api/v1/predictions/${requestId}/result`, {
-        headers: { "x-api-key": apiKey }
+      const response = await fetch(`https://api.muapi.ai/api/v1/predictions/${creation.requestId}/result`, {
+        headers: { "x-api-key": apiKey },
       });
 
-      if (pollRes.ok) {
-        const pollJson = await pollRes.json();
-        const status = pollJson.status;
+      if (response.ok) {
+        const result = await response.json();
+        const checkStatus = result.status || result.state;
 
-        if (status === "completed" || status === "succeeded") {
-          const outputs = pollJson.outputs || [];
-          const outputUrl = outputs.length > 0 ? outputs[0] : null;
-
-          const updated = await prisma.fitnessCreation.update({
-            where: { id: creation.id },
-            data: {
-              status: "completed",
-              resultImage: outputUrl,
-            }
+        if (checkStatus === "completed" || checkStatus === "succeeded") {
+          const outputs = result.outputs || [];
+          const outputUrl = outputs[0] || result.output;
+          return await prisma.creation.update({
+            where: { id: creationId },
+            data: { status: "completed", resultImage: outputUrl },
+            include: { app: true }
           });
-          return { status: "completed", imageUrl: updated.resultImage };
-        } else if (status === "failed") {
-          const updated = await prisma.fitnessCreation.update({
-            where: { id: creation.id },
-            data: {
-              status: "failed",
-              error: pollJson.error || "Generation failed.",
-            }
+        } else if (checkStatus === "failed") {
+          // Refund credits
+          await UserService.addCredits(creation.userId, creation.creditCost);
+          return await prisma.creation.update({
+            where: { id: creationId },
+            data: { status: "failed", error: result.error || "Generation failed" },
+            include: { app: true }
           });
-          return { status: "failed", error: updated.error };
         }
       }
-    } catch (err) {
-      console.error("[STATUS_CHECK_ERROR]", err);
+    } catch (e) {
+      console.error(`Error syncing creation state ${creationId}:`, e);
     }
 
-    return { status: "processing" };
+    return creation;
   }
 };

@@ -1,27 +1,25 @@
-import { Outfit } from "next/font/google";
+import { Inter } from "next/font/google";
+import { Providers } from "./providers";
 import "./globals.css";
-import { Providers } from "@/components/Providers";
-import { Navbar } from "@/components/saas/Navbar";
 
-const font = Outfit({ subsets: ["latin"] });
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  display: "swap",
+});
 
 export const metadata = {
-  title: "AI Fitness Body Simulator - Premium Body Transformation Tool",
-  description: "Simulate high-fidelity physical fitness transformations instantly using the advanced nano-banana-pro-edit model.",
+  title: "AI SaaS Template - Powered by MUAPI",
+  description: "Deploy a premium, monetized credit-based SaaS application in minutes.",
 };
 
-export default function RootLayout({ children }) {
-  const theme = process.env.NEXT_PUBLIC_THEME || 'emerald';
+import { standaloneConfig } from "@/lib/standaloneConfig";
 
+export default function RootLayout({ children }) {
   return (
-    <html lang="en" className="h-dvh w-full transition-colors duration-500" data-theme={theme} style={{ colorScheme: 'light' }}>
-      <body className={`${font.className} h-dvh w-full flex flex-col antialiased transition-colors duration-500 bg-background text-foreground`}>
-        <Providers>
-          <Navbar />
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {children}
-          </div>
-        </Providers>
+    <html lang="en" className={`${inter.variable} h-full`} data-theme={standaloneConfig.config?.theme || "slate-indigo"}>
+      <body className={`${inter.className} h-full antialiased bg-bg-page text-primary-text`}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

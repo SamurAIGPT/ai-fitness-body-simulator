@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { UserService } from "@/lib/services/user";
 
 export async function POST(req) {
   try {
@@ -7,44 +8,55 @@ export async function POST(req) {
     const requestId = data.id || data.request_id;
 
     if (!requestId) {
-      console.error("[MUAPI_WEBHOOK_ERROR] Missing request id in payload", data);
-      return NextResponse.json({ error: "Missing request id" }, { status: 400 });
+      return NextResponse.json({ error: "Missing prediction identifier" }, { status: 400 });
     }
 
-    const creation = await prisma.fitnessCreation.findUnique({
-      where: { requestId }
+    const creation = await prisma.creation.findFirst({
+      where: { requestId },
     });
 
     if (!creation) {
-      console.warn(`[MUAPI_WEBHOOK] FitnessCreation with requestId ${requestId} not found.`);
-      return NextResponse.json({ error: "Creation not found" }, { status: 404 });
+      return NextResponse.json({ error: "Creation record not found" }, { status: 404 });
     }
 
-    if (data.error && data.error !== "") {
-      await prisma.fitnessCreation.update({
+    // Skip processing if already finished
+    if (creation.status === "completed" || creation.status === "failed") {
+      return NextResponse.json({ success: true, message: "Already processed" });
+    }
+
+    if (data.error || data.status === "failed") {
+      const errorMsg = data.error || "Async prediction failed";
+      
+      // Update record to failed
+      await prisma.creation.update({
         where: { id: creation.id },
-        data: {
-          status: "failed",
-          error: data.error
-        }
+        data: { status: "failed", error: errorMsg },
       });
+
+      // Refund user credits
+      await UserService.addCredits(creation.userId, creation.creditCost);
+      
+      return NextResponse.json({ success: true, status: "failed_refunded" });
     } else {
       const outputs = data.outputs || [];
-      const imageUrl = outputs.length > 0 ? outputs[0] : null;
+      const imageUrl = outputs[0] || data.output;
 
-      await prisma.fitnessCreation.update({
+      if (!imageUrl) {
+        return NextResponse.json({ error: "No output URL provided" }, { status: 400 });
+      }
+
+      await prisma.creation.update({
         where: { id: creation.id },
         data: {
           status: "completed",
-          resultImage: imageUrl
-        }
+          resultImage: imageUrl,
+        },
       });
+
+      return NextResponse.json({ success: true, status: "completed" });
     }
-
-    return NextResponse.json({ success: true });
-
   } catch (error) {
-    console.error("[MUAPI_WEBHOOK_ERROR]", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    console.error("MUAPI webhook processing error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
