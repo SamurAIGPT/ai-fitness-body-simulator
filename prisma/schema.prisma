@@ -42,24 +42,45 @@ model User {
   credits       Int           @default(0)
   accounts      Account[]
   sessions      Session[]
-  creations     FitnessCreation[]
+  creations     Creation[]
+  instances     AppInstance[]
 }
 
-model FitnessCreation {
-  id           String   @id @default(cuid())
-  userId       String
-  inputImage   String?   @db.Text
-  resultImage  String?  @db.Text
-  prompt       String   @db.Text
+model AppInstance {
+  id         String     @id @default(cuid())
+  name       String
+  templateId String
+  config     String?    @db.Text
+  createdAt  DateTime   @default(now())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creations  Creation[]
+}
+
+model Creation {
+  id           String       @id @default(cuid())
+  prompt       String?      @db.Text
   aspectRatio  String?
   resolution   String?
-  requestId    String?  @unique
-  status       String   @default("processing")
-  error        String?  @db.Text
-  creditCost   Int      @default(24)
-  createdAt    DateTime @default(now())
+  createdAt    DateTime     @default(now())
+  userId       String
+  requestId    String?      @unique
+  status       String       @default("processing")
+  error        String?      @db.Text
+  appId        String?
+  inputImage   String?      @db.Text
+  resultImage  String?      @db.Text
+  creditCost   Int          @default(1)
+  customData   String?      @db.Text
+  greeting     String?      @db.Text
+  name         String?
+  systemPrompt String?      @db.Text
+  category     String?
+  imageUrl     String?      @db.Text
+  isPack       Boolean      @default(false)
   
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  app          AppInstance? @relation(fields: [appId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
