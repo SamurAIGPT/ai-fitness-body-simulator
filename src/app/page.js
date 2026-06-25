@@ -10,6 +10,13 @@ import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { standaloneConfig } from "@/lib/standaloneConfig";
 
+const DEFAULT_PROMPTS = [
+  "Super muscular bodybuilder physique, raw gym background, photorealistic 8k",
+  "Lean shredded athletic body, outdoor park running stance, realistic sunset light",
+  "Toned athletic yoga shape, peaceful indoor studio, cinematic soft lighting",
+  "Bulky fitness model pose, gym mirror reflection, high detail, sharp focus"
+];
+
 export default function StandaloneWorkspace() {
   const { data: session } = useSession();
   const [activeCreation, setActiveCreation] = useState(null);
@@ -93,6 +100,7 @@ export default function StandaloneWorkspace() {
               appInstance={appInstance}
               activeCreation={activeCreation}
               onCreationCompleted={fetchAppData}
+              defaultPrompts={DEFAULT_PROMPTS}
             />
           ) : (
             <div className="text-xs text-red-500 font-bold">

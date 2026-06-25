@@ -54,7 +54,7 @@ function CustomSelect({ value, onChange, options, placeholder = "Select option",
   );
 }
 
-export default function ImageTemplate({ appInstance, userCredits, activeCreation, onCreationCompleted }) {
+export default function ImageTemplate({ appInstance, userCredits, activeCreation, onCreationCompleted, defaultPrompts = [] }) {
   const parsedConfig = appInstance.config ? JSON.parse(appInstance.config) : {};
   const userParams = parsedConfig.userParams || [];
 
@@ -395,6 +395,23 @@ export default function ImageTemplate({ appInstance, userCredits, activeCreation
                       placeholder={`Enter ${param.label.toLowerCase()}...`}
                       className="w-full bg-bg-page border border-divider rounded p-3 text-xs outline-none focus:border-primary/60 transition-colors h-24 resize-none font-medium placeholder-secondary-text leading-relaxed"
                     />
+                    {param.key === "prompt" && defaultPrompts.length > 0 && (
+                      <div className="flex flex-col gap-1.5 pt-1">
+                        <span className="text-[10px] font-bold text-secondary-text uppercase tracking-wider">Suggestions:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {defaultPrompts.map((suggestion) => (
+                            <button
+                              key={suggestion}
+                              type="button"
+                              onClick={() => setCustomValues(prev => ({ ...prev, [param.key]: suggestion }))}
+                              className="text-[10px] bg-primary/10 border border-primary/20 hover:bg-primary/20 text-primary px-2.5 py-1.5 rounded cursor-pointer font-bold transition-all text-left max-w-full"
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               }
@@ -479,6 +496,23 @@ export default function ImageTemplate({ appInstance, userCredits, activeCreation
                   placeholder="Describe your vision..."
                   className="w-full bg-bg-page border border-divider rounded p-3 text-xs outline-none focus:border-primary/60 transition-colors h-24 resize-none font-medium placeholder-secondary-text leading-relaxed"
                 />
+                {defaultPrompts.length > 0 && (
+                  <div className="flex flex-col gap-1.5 pt-1">
+                    <span className="text-[10px] font-bold text-secondary-text uppercase tracking-wider">Suggestions:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {defaultPrompts.map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          type="button"
+                          onClick={() => setPrompt(suggestion)}
+                          className="text-[10px] bg-primary/10 border border-primary/20 hover:bg-primary/20 text-primary px-2.5 py-1.5 rounded cursor-pointer font-bold transition-all text-left max-w-full"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
