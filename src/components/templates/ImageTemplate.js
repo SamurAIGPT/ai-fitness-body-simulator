@@ -54,7 +54,7 @@ function CustomSelect({ value, onChange, options, placeholder = "Select option",
   );
 }
 
-export default function ImageTemplate({ appInstance, userCredits, activeCreation, onCreationCompleted, defaultPrompts = [] }) {
+export default function ImageTemplate({ appInstance, userCredits, activeCreation, onCreationCompleted, defaultPrompts = [], generating: propGenerating, setGenerating: propSetGenerating }) {
   const parsedConfig = appInstance.config ? JSON.parse(appInstance.config) : {};
   const userParams = parsedConfig.userParams || [];
 
@@ -62,7 +62,9 @@ export default function ImageTemplate({ appInstance, userCredits, activeCreation
   const [image, setImage] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(parsedConfig.aspectRatio || "1:1");
-  const [generating, setGenerating] = useState(false);
+  const [localGenerating, setLocalGenerating] = useState(false);
+  const generating = propGenerating !== undefined ? propGenerating : localGenerating;
+  const setGenerating = propSetGenerating !== undefined ? propSetGenerating : setLocalGenerating;
   const [beforeAfterSlider, setBeforeAfterSlider] = useState(50);
 
   // Dynamic Parameter State
