@@ -13,6 +13,8 @@
 
 > 🎨 **[Explore 50+ more open-source AI apps →](https://github.com/Anil-matcha/awesome-generative-ai-apps)**
 
+https://github.com/user-attachments/assets/4ff474a8-319e-4e7a-ae72-e603f83d8957
+
 ## 🌐 Try the Live Engine
 
 **Hosted Demo:** [ai-fitness-body-simulator.vercel.app](https://ai-fitness-body-simulator.vercel.app/)
